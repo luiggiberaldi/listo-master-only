@@ -59,7 +59,6 @@
     "win": {
       "target": "nsis",
       "icon": "public/icon.ico",
-      "publisherName": "Inversiones Luigi C.A.",
       "verifyUpdateCodeSignature": false,
       "publish": {
         "provider": "github",
