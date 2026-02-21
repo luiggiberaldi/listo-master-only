@@ -2,9 +2,9 @@
 // 🛡️ LISTO SECURITY CORE - OFF-GRID PROTOCOLS
 // Archivo: src/utils/securityUtils.js
 
-// SALTS (SECRETS)
-export const SALT_OWNER = "LISTO_GO_TACTICAL_KEY_2026";
-export const SALT_MASTER = "LISTO_MASTER_SUPER_ADMIN_KEY_X99";
+// SALTS (FROM ENVIRONMENT — never hardcode)
+export const SALT_OWNER = import.meta.env.VITE_SALT_OWNER;
+export const SALT_MASTER = import.meta.env.VITE_SALT_MASTER;
 
 // 1. Calcular Respuesta (SHA-256 Truncado a 6 dígitos numéricos)
 export const calculateResponse = async (challenge, systemId, salt) => {

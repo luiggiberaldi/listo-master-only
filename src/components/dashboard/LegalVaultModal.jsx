@@ -98,110 +98,110 @@ export function LegalVaultModal({ terminal, onClose }) {
     };
 
     const generateCertificate = (log) => {
-        const doc = new jsPDF();
+        const pdf = new jsPDF();
         const dateStr = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('es-VE') : new Date().toLocaleString();
 
         // --- 1. CONFIGURACIÓN DE PÁGINA (LIGHT THEME) ---
-        doc.setFillColor(255, 255, 255);
-        doc.rect(0, 0, 210, 297, 'F'); // Fondo Blanco Puro
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, 210, 297, 'F'); // Fondo Blanco Puro
 
         // Marco elegante sutil
-        doc.setDrawColor(226, 232, 240); // Slate 200
-        doc.setLineWidth(0.5);
-        doc.rect(10, 10, 190, 277);
+        pdf.setDrawColor(226, 232, 240); // Slate 200
+        pdf.setLineWidth(0.5);
+        pdf.rect(10, 10, 190, 277);
 
         // Franja de Encabezado Superior
-        doc.setFillColor(15, 23, 42); // Slate 900
-        doc.rect(10, 10, 190, 20, 'F');
+        pdf.setFillColor(15, 23, 42); // Slate 900
+        pdf.rect(10, 10, 190, 20, 'F');
 
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text("CERTIFICADO DE ACEPTACIÓN DIGITAL - LISTO POS", 105, 23, { align: "center" });
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(14);
+        pdf.text("CERTIFICADO DE ACEPTACIÓN DIGITAL - LISTO POS", 105, 23, { align: "center" });
 
         // --- 2. DATOS DEL SUSCRIPTOR ---
-        doc.setTextColor(30, 41, 59); // Slate 800
-        doc.setFontSize(16);
-        doc.text("ACTA DE REGISTRO FORENSE", 20, 50);
+        pdf.setTextColor(30, 41, 59); // Slate 800
+        pdf.setFontSize(16);
+        pdf.text("ACTA DE REGISTRO FORENSE", 20, 50);
 
-        doc.setDrawColor(16, 185, 129); // Emerald 500
-        doc.setLineWidth(1);
-        doc.line(20, 55, 60, 55);
+        pdf.setDrawColor(16, 185, 129); // Emerald 500
+        pdf.setLineWidth(1);
+        pdf.line(20, 55, 60, 55);
 
-        doc.setFontSize(10);
-        doc.setTextColor(148, 163, 184); // Slate 400
-        doc.setFont("helvetica", "bold");
-        doc.text("LICENCIATARIO:", 20, 70);
-        doc.text("HARDWARE ID:", 20, 80);
-        doc.text("REGISTRO IP:", 20, 90);
-        doc.text("FECHA/HORA:", 20, 100);
-        doc.text("CONTRATO:", 20, 110);
+        pdf.setFontSize(10);
+        pdf.setTextColor(148, 163, 184); // Slate 400
+        pdf.setFont("helvetica", "bold");
+        pdf.text("LICENCIATARIO:", 20, 70);
+        pdf.text("HARDWARE ID:", 20, 80);
+        pdf.text("REGISTRO IP:", 20, 90);
+        pdf.text("FECHA/HORA:", 20, 100);
+        pdf.text("CONTRATO:", 20, 110);
 
-        doc.setTextColor(15, 23, 42); // Slate 900
-        doc.setFont("courier", "bold");
-        doc.text(terminal.nombreNegocio.toUpperCase(), 60, 70);
-        doc.text(log.machine_id || "IDENTIFICADOR NO DISPONIBLE", 60, 80);
-        doc.text(log.ip_address || "NO REGISTRADA", 60, 90);
-        doc.text(dateStr, 60, 100);
-        doc.text(log.contract_version || "v1.0-2026", 60, 110);
+        pdf.setTextColor(15, 23, 42); // Slate 900
+        pdf.setFont("courier", "bold");
+        pdf.text(terminal.nombreNegocio.toUpperCase(), 60, 70);
+        pdf.text(log.machine_id || "IDENTIFICADOR NO DISPONIBLE", 60, 80);
+        pdf.text(log.ip_address || "NO REGISTRADA", 60, 90);
+        pdf.text(dateStr, 60, 100);
+        pdf.text(log.contract_version || "v1.0-2026", 60, 110);
 
         // --- 3. CONTENIDO LEGAL (SNAPSHOT) ---
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(16, 185, 129);
-        doc.text("CONTENIDO LEGAL PROTEGIDO E INMUTABLE:", 20, 125);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(11);
+        pdf.setTextColor(16, 185, 129);
+        pdf.text("CONTENIDO LEGAL PROTEGIDO E INMUTABLE:", 20, 125);
 
-        doc.setFont("courier", "normal");
-        doc.setTextColor(51, 65, 85); // Slate 700
-        doc.setFontSize(7.5);
+        pdf.setFont("courier", "normal");
+        pdf.setTextColor(51, 65, 85); // Slate 700
+        pdf.setFontSize(7.5);
 
         // Rectángulo para el texto (Área de Lectura)
-        doc.setDrawColor(241, 245, 249);
-        doc.setFillColor(248, 250, 252);
-        doc.rect(20, 130, 170, 100, 'F');
+        pdf.setDrawColor(241, 245, 249);
+        pdf.setFillColor(248, 250, 252);
+        pdf.rect(20, 130, 170, 100, 'F');
 
         // SANITIZACIÓN DE TEXTO: (Permitir caracteres latinos)
         const cleanText = (log.contract_text_snapshot || "CONTENIDO NO DISPONIBLE")
             // .replace(/[^\x00-\x7F]/g, "-") // REMOVED: Allow UTF-8 chars
             .replace(/={50,}/g, "=================================================="); // Normaliza barras
 
-        const contentSnapshot = doc.splitTextToSize(cleanText, 160);
+        const contentSnapshot = pdf.splitTextToSize(cleanText, 160);
 
-        doc.text(contentSnapshot.slice(0, 42), 25, 138); // Reducimos a 42 líneas para evitar solapamiento con el sello
+        pdf.text(contentSnapshot.slice(0, 42), 25, 138); // Reducimos a 42 líneas para evitar solapamiento con el sello
 
         // --- 4. EL SELLO FORENSE DIGITAL ---
         const sealX = 165;
         const sealY = 245;
 
-        doc.setDrawColor(16, 185, 129);
-        doc.setLineWidth(1.5);
-        doc.circle(sealX, sealY, 22); // Círculo exterior
-        doc.setLineWidth(0.5);
-        doc.circle(sealX, sealY, 19); // Círculo interior
+        pdf.setDrawColor(16, 185, 129);
+        pdf.setLineWidth(1.5);
+        pdf.circle(sealX, sealY, 22); // Círculo exterior
+        pdf.setLineWidth(0.5);
+        pdf.circle(sealX, sealY, 19); // Círculo interior
 
         // Simulación de texto circular
-        doc.setFontSize(5);
-        doc.setTextColor(16, 185, 129);
-        doc.setFont("helvetica", "bold");
-        doc.text("VALIDACIÓN DIGITAL * LISTO POS * LUIGI BERALDI", sealX, sealY - 24, { align: "center" });
+        pdf.setFontSize(5);
+        pdf.setTextColor(16, 185, 129);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("VALIDACIÓN DIGITAL * LISTO POS * LUIGI BERALDI", sealX, sealY - 24, { align: "center" });
 
         // Centro del Sello (Inclinado)
-        doc.setFontSize(12);
-        doc.text("FIRMADO", sealX, sealY + 2, { align: "center", angle: -15 });
+        pdf.setFontSize(12);
+        pdf.text("FIRMADO", sealX, sealY + 2, { align: "center", angle: -15 });
 
         // ID Corto en el Sello
-        doc.setFontSize(6);
+        pdf.setFontSize(6);
         const shortId = log.id ? log.id.substring(0, 12).toUpperCase() : "VERIFIED";
-        doc.text(`ID: ${shortId}`, sealX, sealY + 8, { align: "center", angle: -15 });
+        pdf.text(`ID: ${shortId}`, sealX, sealY + 8, { align: "center", angle: -15 });
 
         // --- 5. FOOTER ---
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(148, 163, 184); // Slate 400
-        doc.text(`Certificado de integridad electrónica generado el ${new Date().toLocaleString()}`, 20, 285);
-        doc.text(`Doc Ref: ${log.id || 'N/A'}`, 190, 285, { align: "right" });
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(148, 163, 184); // Slate 400
+        pdf.text(`Certificado de integridad electrónica generado el ${new Date().toLocaleString()}`, 20, 285);
+        pdf.text(`Doc Ref: ${log.id || 'N/A'}`, 190, 285, { align: "right" });
 
-        doc.save(`Certificado_Legal_${terminal.nombreNegocio.replace(/\s+/g, '_')}.pdf`);
+        pdf.save(`Certificado_Legal_${terminal.nombreNegocio.replace(/\s+/g, '_')}.pdf`);
     };
 
     if (!terminal) return null;

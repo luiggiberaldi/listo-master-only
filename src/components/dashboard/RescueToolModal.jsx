@@ -1,18 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldAlert, KeyRound, Copy, Terminal, X, WifiOff } from 'lucide-react';
 import { generateMasterPin } from '../../utils/securityUtils';
 import Swal from 'sweetalert2';
 
 export default function RescueToolModal({ isOpen, onClose, prefillId = '', terminals = [] }) {
-    if (!isOpen) return null;
-
     const [systemId, setSystemId] = useState(prefillId);
     const [challenge, setChallenge] = useState('');
     const [generatedPin, setGeneratedPin] = useState(null);
 
+    // Sync prefillId when prop changes
+    useEffect(() => {
+        if (prefillId) setSystemId(prefillId);
+    }, [prefillId]);
+
+    if (!isOpen) return null;
+
     // Validation Logic
     const foundTerminal = terminals.find(t => t.id === systemId);
-    // If not found, we assume it's valid (or at least don't block), but if found, we check status.
     const isSuspended = foundTerminal && foundTerminal.status === 'SUSPENDED';
 
     const handleGenerate = async () => {

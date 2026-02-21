@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserPlus, Search, LifeBuoy } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { useTerminalData } from '../hooks/useTerminalData';
 import { StatsBar } from './dashboard/StatsBar';
 import { TerminalCard } from './dashboard/TerminalCard';
@@ -33,11 +34,18 @@ export default function Dashboard({ onGenerateKey }) {
         setShowRescueTool(true);
     };
 
-    // Filtrado Inteligente
-    const filteredTerminals = (terminales || []).filter(t =>
-        (t.nombreNegocio?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-        (t.id?.toLowerCase() || "").includes(searchTerm.toLowerCase())
-    );
+    // Filtrado Inteligente + Priority Sort (_needsActivation primero)
+    const filteredTerminals = (terminales || [])
+        .filter(t =>
+            (t.nombreNegocio?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+            (t.id?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+        )
+        .sort((a, b) => {
+            // _needsActivation terminals always first
+            const aNeeds = a._needsActivation ? 1 : 0;
+            const bNeeds = b._needsActivation ? 1 : 0;
+            return bNeeds - aNeeds;
+        });
 
     // Lógica de Paginación
     const totalItems = filteredTerminals.length;
@@ -45,9 +53,50 @@ export default function Dashboard({ onGenerateKey }) {
     const paginatedTerminals = filteredTerminals.slice(startIndex, startIndex + itemsPerPage);
 
     // Reset de página al buscar
-    React.useEffect(() => {
+    useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm]);
+
+    // 🔔 TOAST: Real-time notification when new activation requests arrive
+    const prevActivationIdsRef = useRef(new Set());
+    useEffect(() => {
+        const currentIds = new Set(
+            (terminales || []).filter(t => t._needsActivation).map(t => t.id)
+        );
+
+        // Skip first render (don't toast for existing requests)
+        if (prevActivationIdsRef.current.size > 0 || currentIds.size === 0) {
+            // Find new activation requests
+            currentIds.forEach(id => {
+                if (!prevActivationIdsRef.current.has(id)) {
+                    const terminal = terminales.find(t => t.id === id);
+                    if (terminal) {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: `⚠️ ${terminal.nombreNegocio}`,
+                            text: 'Solicita Activación de Licencia',
+                            timer: 6000,
+                            showConfirmButton: false,
+                            background: '#1a1520',
+                            color: '#fbbf24',
+                            iconColor: '#f59e0b',
+                            customClass: {
+                                popup: 'border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.15)]'
+                            }
+                        });
+                    }
+                }
+            });
+        }
+        prevActivationIdsRef.current = currentIds;
+    }, [terminales]);
+
+    // Quick activate handler - direct activation with confirmation
+    const handleQuickActivate = (terminal) => {
+        actions.handleQuickActivate(terminal);
+    };
 
     if (loading) {
         return (
@@ -128,7 +177,8 @@ export default function Dashboard({ onGenerateKey }) {
                         unreadCount={unreadMap?.[terminal.id] || 0}
                         onGenerateKey={() => handleOpenRescue(terminal.id)}
                         onOpenLegal={() => setLegalTerminal(terminal)}
-                        onOpenMessages={() => setMessagesTerminal(terminal)} // Nuevo prop
+                        onOpenMessages={() => setMessagesTerminal(terminal)}
+                        onQuickActivate={handleQuickActivate}
                     />
                 ))}
             </div>

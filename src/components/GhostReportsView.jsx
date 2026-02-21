@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, query, orderBy, limit, where, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { syncGhostReports, deleteLocalReport, deleteAllLocalReports } from '../services/ghostArchiveService';
 import Swal from 'sweetalert2';
 import {
     Download, RefreshCw, Search, FileBarChart, Activity,
@@ -21,14 +22,12 @@ export default function GhostReportsView() {
     const fetchReports = async () => {
         setLoading(true);
         try {
-            const reportsRef = collection(db, 'ghost_daily_reports');
-            const q = query(reportsRef, orderBy('generatedAt', 'desc'), limit(30));
-            const snapshot = await getDocs(q);
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sync: Firebase → local IndexedDB → purge Firebase
+            const data = await syncGhostReports();
             setReports(data);
-            if (data.length > 0) setSelectedReport(data[0]);
+            if (data.length > 0 && !selectedReport) setSelectedReport(data[0]);
         } catch (error) {
-            console.warn("Ghost Reports fetch error:", error);
+            console.warn("Ghost Reports sync error:", error);
         } finally {
             setLoading(false);
         }
@@ -183,7 +182,7 @@ export default function GhostReportsView() {
         });
         if (!confirm.isConfirmed) return;
         try {
-            await deleteDoc(doc(db, 'ghost_daily_reports', report.id));
+            await deleteLocalReport(report.id);
             if (selectedReport?.id === report.id) setSelectedReport(null);
             await fetchReports();
             Swal.fire({ title: 'Eliminado', icon: 'success', timer: 1500, showConfirmButton: false, background: '#0f172a', color: '#f8fafc' });
@@ -208,9 +207,7 @@ export default function GhostReportsView() {
         if (!confirm.isConfirmed) return;
         try {
             setLoading(true);
-            for (const r of reports) {
-                await deleteDoc(doc(db, 'ghost_daily_reports', r.id));
-            }
+            await deleteAllLocalReports();
             setSelectedReport(null);
             setCurrentPage(0);
             await fetchReports();

@@ -1,26 +1,39 @@
 import React, { useState } from 'react';
-import { Power, Edit3, Trash2, Key, Zap, MapPin, ShieldCheck, User, Hash, Phone, ExternalLink, ChevronDown, ChevronUp, Copy, MessageSquare } from 'lucide-react';
+import { Power, Edit3, Trash2, Key, Zap, MapPin, ShieldCheck, User, Hash, Phone, ExternalLink, ChevronDown, ChevronUp, Copy, MessageSquare, ArrowRightLeft, Bell } from 'lucide-react';
+import { getPlan, getAllPlans } from '../../config/planTiers';
 import Swal from 'sweetalert2';
 
-export const TerminalCard = ({ terminal, actions, onGenerateKey, onOpenLegal, unreadCount, onOpenMessages }) => {
+export const TerminalCard = ({ terminal, actions, onGenerateKey, onOpenLegal, unreadCount, onOpenMessages, onQuickActivate }) => {
     const {
         handleToggleStatus,
         handleEditName,
         handleDeleteTerminal,
-        handleResetPIN
+        handleResetPIN,
+        handleChangePlan,
+        handleEditDemoQuota
     } = actions;
+
+    const planInfo = getPlan(terminal.plan);
 
     const [isCardExpanded, setIsCardExpanded] = useState(false);
     const [isKycOpen, setIsKycOpen] = useState(false);
 
     const isSuspended = terminal.status === 'SUSPENDED';
+    const needsActivation = !!terminal._needsActivation;
     const statusText = isSuspended ? 'SUSPENDIDO' : 'ACTIVO';
     const statusColor = isSuspended
         ? 'bg-red-500/10 text-red-400 border-red-500/30'
         : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
 
+    // Card border class based on state priority
+    const cardBorderClass = needsActivation
+        ? 'border-amber-500/60 shadow-[0_0_25px_rgba(245,158,11,0.15)]'
+        : isSuspended
+            ? 'border-red-900/30 grayscale-[0.5] opacity-80'
+            : 'border-slate-800/50';
+
     return (
-        <div className={`glass-panel glass-panel-hover rounded-2xl p-6 transition-all duration-300 relative overflow-hidden ${isSuspended ? 'border-red-900/30 grayscale-[0.5] opacity-80' : 'border-slate-800/50'}`}>
+        <div className={`glass-panel glass-panel-hover rounded-2xl p-6 transition-all duration-300 relative overflow-hidden ${cardBorderClass}`}>
 
             {/* NOTIFICATION BUBBLE */}
             {unreadCount > 0 && (
@@ -77,6 +90,77 @@ export const TerminalCard = ({ terminal, actions, onGenerateKey, onOpenLegal, un
                 >
                     <Trash2 size={18} />
                 </button>
+            </div>
+
+            {/* 🔔 ACTIVATION REQUEST ALERT — URGENT DESIGN */}
+            {needsActivation && (
+                <div className="mb-4 p-4 rounded-xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(245,158,11,0.2) 100%)', border: '1px solid rgba(245,158,11,0.4)', boxShadow: '0 0 30px rgba(245,158,11,0.1), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+                    {/* Animated glow pulse behind */}
+                    <div className="absolute inset-0 rounded-xl animate-pulse" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.05) 0%, rgba(245,158,11,0.08) 100%)' }} />
+
+                    <div className="relative z-10 flex items-center gap-3">
+                        {/* Icon with ring animation */}
+                        <div className="relative flex-shrink-0">
+                            <div className="absolute inset-0 rounded-xl bg-amber-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+                            <div className="relative p-2.5 rounded-xl bg-gradient-to-br from-red-500/30 to-amber-500/30 border border-amber-500/30">
+                                <Bell size={18} className="text-amber-400" />
+                            </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-black text-amber-400 uppercase tracking-[0.15em]">⚠ Solicita Activación</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                                <span className="text-white font-bold">{terminal._lastUsageCount || '—'}</span> ventas
+                                {terminal._requestedPlan && (
+                                    <span className="ml-1.5 text-emerald-400 font-bold">
+                                        • Plan {terminal._requestedPlan === 'minimarket' ? '🏢 Minimarket' : terminal._requestedPlan === 'abasto' ? '🏬 Abasto' : '🏪 Bodega'}
+                                    </span>
+                                )}
+                                {terminal._activationRequestedAt?.toDate && (
+                                    <span className="ml-1 text-slate-500">
+                                        • {terminal._activationRequestedAt.toDate().toLocaleString('es-VE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+
+                        {/* Quick Activate Button */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onQuickActivate && onQuickActivate(terminal); }}
+                            className="flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/20 active:scale-[0.95] transition-all whitespace-nowrap"
+                        >
+                            <Zap size={12} className="inline mr-1.5 -mt-0.5" />
+                            Activar
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Plan + Demo Badge */}
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <button
+                    onClick={() => handleChangePlan(terminal)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all hover:opacity-80 ${planInfo.color}`}
+                    title="Cambiar Plan"
+                >
+                    <span>{planInfo.icon}</span>
+                    <span>{planInfo.label}</span>
+                    <ArrowRightLeft size={10} className="ml-1 opacity-50" />
+                </button>
+                {terminal.isDemo ? (
+                    <button
+                        onClick={() => handleEditDemoQuota && handleEditDemoQuota(terminal)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 active:scale-95 transition-all outline-none cursor-pointer flex-row"
+                        title="Editar Límite de Ventas Demo"
+                    >
+                        <Edit3 size={10} className="opacity-70" />
+                        <span>Demo • {Math.max(0, (terminal.quotaLimit || 0) - (terminal.usage_count || 0))} disponibles</span>
+                    </button>
+                ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[9px] font-bold bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+                        ✅ Full
+                    </span>
+                )}
             </div>
 
             {/* Hardware ID */}

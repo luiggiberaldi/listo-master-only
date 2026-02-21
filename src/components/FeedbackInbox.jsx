@@ -1,52 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { MessageSquare, Trash2, CheckCircle, Clock, Inbox, Archive, RotateCcw, ChevronDown, ChevronUp, User } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function FeedbackInbox() {
-    const [groupedMessages, setGroupedMessages] = useState({});
+    const [allMessages, setAllMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState('inbox'); // 'inbox' | 'archived'
     const [expandedGroups, setExpandedGroups] = useState({}); // { hardwareId: boolean }
 
+    // 📡 Single listener — does NOT re-subscribe on viewMode change
     useEffect(() => {
-        // 📡 LEER SUGERENCIAS
         const unsubscribe = onSnapshot(collection(db, "sugerencias"),
             (snapshot) => {
                 const rawData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
-                // 🟢 FILTRADO DINÁMICO BASADO EN VIEWMODE
-                const isArchiveView = viewMode === 'archived';
-                const filteredData = rawData.filter(m =>
-                    isArchiveView ? m.archivado === true : m.archivado !== true
-                );
-
-                // 🟢 GROUPING BY HARDWARE ID
-                const groups = {};
-                filteredData.forEach(msg => {
-                    const hwId = msg.hardwareId || 'unknown';
-                    if (!groups[hwId]) {
-                        groups[hwId] = {
-                            hardwareId: hwId,
-                            nombreNegocio: msg.nombreNegocio || 'Desconocido',
-                            version: msg.version || 'v?',
-                            messages: []
-                        };
-                    }
-                    groups[hwId].messages.push(msg);
-                });
-
-                // 🟢 SORT MESSAGES INSIDE GROUPS (NEWEST FIRST)
-                Object.values(groups).forEach(group => {
-                    group.messages.sort((a, b) => {
-                        if (!a.fecha) return 1;
-                        if (!b.fecha) return -1;
-                        return b.fecha?.seconds - a.fecha?.seconds;
-                    });
-                });
-
-                setGroupedMessages(groups);
+                setAllMessages(rawData);
                 setLoading(false);
             },
             (error) => {
@@ -55,7 +24,39 @@ export default function FeedbackInbox() {
             }
         );
         return () => unsubscribe();
-    }, [viewMode]);
+    }, []);
+
+    // 🟢 Client-side filtering (reactive on viewMode change, no re-subscription)
+    const groupedMessages = useMemo(() => {
+        const isArchiveView = viewMode === 'archived';
+        const filteredData = allMessages.filter(m =>
+            isArchiveView ? m.archivado === true : m.archivado !== true
+        );
+
+        const groups = {};
+        filteredData.forEach(msg => {
+            const hwId = msg.hardwareId || 'unknown';
+            if (!groups[hwId]) {
+                groups[hwId] = {
+                    hardwareId: hwId,
+                    nombreNegocio: msg.nombreNegocio || 'Desconocido',
+                    version: msg.version || 'v?',
+                    messages: []
+                };
+            }
+            groups[hwId].messages.push(msg);
+        });
+
+        Object.values(groups).forEach(group => {
+            group.messages.sort((a, b) => {
+                if (!a.fecha) return 1;
+                if (!b.fecha) return -1;
+                return b.fecha?.seconds - a.fecha?.seconds;
+            });
+        });
+
+        return groups;
+    }, [allMessages, viewMode]);
 
     const toggleGroup = (hwId) => {
         setExpandedGroups(prev => ({
@@ -124,8 +125,8 @@ export default function FeedbackInbox() {
                     <button
                         onClick={() => setViewMode('inbox')}
                         className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'inbox'
-                                ? 'bg-slate-700 text-white shadow-lg'
-                                : 'text-slate-500 hover:text-slate-300'
+                            ? 'bg-slate-700 text-white shadow-lg'
+                            : 'text-slate-500 hover:text-slate-300'
                             }`}
                     >
                         <Inbox size={14} /> BUZÓN
@@ -133,8 +134,8 @@ export default function FeedbackInbox() {
                     <button
                         onClick={() => setViewMode('archived')}
                         className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'archived'
-                                ? 'bg-slate-700 text-white shadow-lg'
-                                : 'text-slate-500 hover:text-slate-300'
+                            ? 'bg-slate-700 text-white shadow-lg'
+                            : 'text-slate-500 hover:text-slate-300'
                             }`}
                     >
                         <Archive size={14} /> ARCHIVO

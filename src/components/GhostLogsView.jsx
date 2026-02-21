@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, getDocs, query, orderBy, limit, doc, writeBatch } from 'firebase/firestore';
+import { syncGhostSessions, deleteAllLocalSessions } from '../services/ghostArchiveService';
 import { Download, RefreshCw, BrainCircuit, Search, Terminal, FileText, Database, Trash2 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 export default function GhostLogsView() {
     const [sessions, setSessions] = useState([]);
@@ -11,14 +11,12 @@ export default function GhostLogsView() {
     const fetchSessions = async () => {
         setLoading(true);
         try {
-            const sessionsRef = collection(db, 'ghost_compact_sessions');
-            const q = query(sessionsRef, orderBy('lastUpdate', 'desc'), limit(50));
-            const snapshot = await getDocs(q);
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sync: Firebase → local IndexedDB → purge Firebase
+            const data = await syncGhostSessions();
             setSessions(data);
-            if (data.length > 0) setSelectedSession(data[0]);
+            if (data.length > 0 && !selectedSession) setSelectedSession(data[0]);
         } catch (error) {
-            console.warn("Firestore fetch error:", error);
+            console.warn("Ghost Sessions sync error:", error);
         } finally {
             setLoading(false);
         }
@@ -28,28 +26,60 @@ export default function GhostLogsView() {
         if (sessions.length === 0) return;
 
         // 1. First Verification
-        const firstCheck = window.confirm(`⚠️ ADVERTENCIA DE SEGURIDAD ⚠️\n\nEstás a punto de ELIMINAR PERMANENTEMENTE ${sessions.length} sesiones de entrenamiento.\n\n¿Ya descargaste el Dataset? Si borras esto, no hay vuelta atrás.\n\n¿Deseas continuar?`);
-        if (!firstCheck) return;
+        const firstCheck = await Swal.fire({
+            title: '⚠️ ADVERTENCIA DE SEGURIDAD',
+            html: `Estás a punto de <strong>ELIMINAR PERMANENTEMENTE</strong> ${sessions.length} sesiones de entrenamiento.<br/><br/>¿Ya descargaste el Dataset?`,
+            icon: 'warning',
+            background: '#0f172a',
+            color: '#f8fafc',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'SÍ, CONTINUAR',
+            cancelButtonText: 'CANCELAR'
+        });
+        if (!firstCheck.isConfirmed) return;
 
-        // 2. Second Verification
-        const secondCheck = window.confirm(`🛑 CONFIRMACIÓN FINAL 🛑\n\nEsta acción borrará los datos de la nube (Firestore) para siempre.\n\nEscribe "OK" en tu mente y dale a Aceptar para PURGAR TODO.`);
-        if (!secondCheck) return;
+        // 2. Second Verification — Keyword
+        const { value: keyword } = await Swal.fire({
+            title: '🛑 CONFIRMACIÓN FINAL',
+            text: 'Escribe PURGAR para eliminar todos los datos:',
+            input: 'text',
+            inputPlaceholder: 'PURGAR',
+            background: '#0f172a',
+            color: '#f8fafc',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'EJECUTAR PURGA',
+            cancelButtonText: 'CANCELAR',
+            inputValidator: (value) => {
+                if (value !== 'PURGAR') return 'Debes escribir PURGAR exactamente.';
+            }
+        });
+        if (!keyword) return;
 
         setLoading(true);
         try {
-            const batch = writeBatch(db);
-            sessions.forEach(session => {
-                const docRef = doc(db, 'ghost_compact_sessions', session.id);
-                batch.delete(docRef);
-            });
-            await batch.commit();
+            await deleteAllLocalSessions();
 
-            alert("🗑️ Purgado completado. El sistema está limpio.");
+            Swal.fire({
+                title: '🗑️ Purgado Completado',
+                text: 'El sistema está limpio.',
+                icon: 'success',
+                background: '#0f172a',
+                color: '#f8fafc',
+                confirmButtonColor: '#10b981'
+            });
             setSessions([]);
             setSelectedSession(null);
         } catch (error) {
             console.error("Delete failed:", error);
-            alert("Error al borrar: " + error.message);
+            Swal.fire({
+                title: 'Error',
+                text: 'Error al borrar: ' + error.message,
+                icon: 'error',
+                background: '#0f172a',
+                color: '#f8fafc'
+            });
         } finally {
             setLoading(false);
         }
