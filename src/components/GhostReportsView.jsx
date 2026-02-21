@@ -357,24 +357,25 @@ export default function GhostReportsView() {
                                         : 'bg-slate-950/50 border-slate-800 hover:bg-slate-900'
                                         }`}
                                 >
-                                    {/* Delete button */}
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteSingle(report); }}
-                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 bg-red-500/10 hover:bg-red-500/30 text-red-400 rounded-lg transition-all"
-                                        title="Eliminar reporte"
-                                    >
-                                        <Trash2 size={12} />
-                                    </button>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex items-center gap-2 mt-1">
                                             <Calendar size={14} className="text-slate-500" />
                                             <span className="text-sm font-bold text-slate-300">{report.date}</span>
                                         </div>
-                                        {score != null && (
-                                            <span className={`text-lg font-black ${getHealthColor(score)}`}>
-                                                {score}
-                                            </span>
-                                        )}
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteSingle(report); }}
+                                                className="opacity-0 group-hover:opacity-100 p-1.5 bg-red-500/10 hover:bg-red-500/30 text-red-400 rounded-lg transition-all"
+                                                title="Eliminar reporte"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                            {score != null && (
+                                                <span className={`text-lg font-black leading-none ${getHealthColor(score)}`}>
+                                                    {score}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="text-xs text-slate-500 space-y-1">
                                         <div className="flex justify-between">
