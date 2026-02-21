@@ -7,6 +7,7 @@ import GhostReportsView from './components/GhostReportsView';
 import { LayoutGrid, MessageSquare, LogOut, Shield, Archive, Key, Mail, Lock, Eye, EyeOff, BrainCircuit, FileBarChart } from 'lucide-react';
 import { auth } from './firebase';
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
+import UpdateNotification from './components/UpdateNotification';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -217,6 +218,7 @@ function App() {
         </div>
       </main>
 
+      <UpdateNotification />
     </div>
   );
 }

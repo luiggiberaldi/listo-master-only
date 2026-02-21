@@ -19,6 +19,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "autoprefixer": "^10.4.23",
     "dexie": "^4.3.0",
+    "electron-updater": "^6.8.3",
     "firebase": "^12.8.0",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
@@ -59,7 +60,13 @@
       "target": "nsis",
       "icon": "public/icon.ico",
       "publisherName": "Inversiones Luigi C.A.",
-      "verifyUpdateCodeSignature": false
+      "verifyUpdateCodeSignature": false,
+      "publish": {
+        "provider": "github",
+        "owner": "luiggiberaldi",
+        "repo": "listo-master-only",
+        "releaseType": "release"
+      }
     }
   }
 }
