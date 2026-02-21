@@ -3,7 +3,8 @@ import Dashboard from './components/Dashboard';
 import FeedbackInbox from './components/FeedbackInbox';
 import Fabrica from './components/Fabrica';
 import GhostLogsView from './components/GhostLogsView';
-import { LayoutGrid, MessageSquare, LogOut, Shield, Archive, Key, Mail, Lock, Eye, EyeOff, BrainCircuit } from 'lucide-react';
+import GhostReportsView from './components/GhostReportsView';
+import { LayoutGrid, MessageSquare, LogOut, Shield, Archive, Key, Mail, Lock, Eye, EyeOff, BrainCircuit, FileBarChart } from 'lucide-react';
 import { auth } from './firebase';
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -174,6 +175,7 @@ function App() {
           <div className="flex bg-slate-950/50 rounded-full p-1 border border-slate-800/50">
             {[
               { id: 'dashboard', icon: LayoutGrid, label: 'Consola' },
+              { id: 'reportes', icon: FileBarChart, label: 'Reportes' },
               { id: 'feedback', icon: MessageSquare, label: 'Mensajes' },
               { id: 'fabrica', icon: Key, label: 'Fábrica' },
               { id: 'ghost', icon: BrainCircuit, label: 'Ghost AI' },
@@ -208,6 +210,7 @@ function App() {
       <main className="max-w-7xl mx-auto pt-32 px-6">
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
           {activeTab === 'dashboard' && <Dashboard onGenerateKey={handleGoToFabrica} />}
+          {activeTab === 'reportes' && <GhostReportsView />}
           {activeTab === 'feedback' && <FeedbackInbox />}
           {activeTab === 'fabrica' && <Fabrica prefilledId={prefilledHwId} />}
           {activeTab === 'ghost' && <GhostLogsView />}
