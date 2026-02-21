@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, query, orderBy, limit, where, doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, where, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import Swal from 'sweetalert2';
 import {
     Download, RefreshCw, Search, FileBarChart, Activity,
     AlertTriangle, CheckCircle, XCircle, TrendingUp,
-    Calendar, ChevronDown, ChevronUp, Database, Clock, Zap
+    Calendar, ChevronDown, ChevronUp, Database, Clock, Zap,
+    Trash2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 export default function GhostReportsView() {
@@ -14,6 +15,8 @@ export default function GhostReportsView() {
     const [simulating, setSimulating] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
     const [expandedSections, setExpandedSections] = useState({ anomalias: true, recomendaciones: true });
+    const [currentPage, setCurrentPage] = useState(0);
+    const REPORTS_PER_PAGE = 10;
 
     const fetchReports = async () => {
         setLoading(true);
@@ -165,6 +168,64 @@ export default function GhostReportsView() {
         setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
+    // ─── DELETE HANDLERS ───
+    const handleDeleteSingle = async (report) => {
+        const confirm = await Swal.fire({
+            title: '🗑️ Eliminar Reporte',
+            html: `¿Eliminar reporte de <b>${report.date}</b> (${report.businessName})?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#ef4444',
+            background: '#0f172a',
+            color: '#f8fafc'
+        });
+        if (!confirm.isConfirmed) return;
+        try {
+            await deleteDoc(doc(db, 'ghost_daily_reports', report.id));
+            if (selectedReport?.id === report.id) setSelectedReport(null);
+            await fetchReports();
+            Swal.fire({ title: 'Eliminado', icon: 'success', timer: 1500, showConfirmButton: false, background: '#0f172a', color: '#f8fafc' });
+        } catch (e) {
+            Swal.fire({ title: 'Error', text: e.message, icon: 'error', background: '#0f172a', color: '#f8fafc' });
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (reports.length === 0) return;
+        const confirm = await Swal.fire({
+            title: '🗑️ Eliminar TODOS los Reportes',
+            html: `Se eliminarán <b>${reports.length}</b> reportes permanentemente.<br/><span style="color:#ef4444">Esta acción no se puede deshacer.</span>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: `Sí, eliminar ${reports.length}`,
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#ef4444',
+            background: '#0f172a',
+            color: '#f8fafc'
+        });
+        if (!confirm.isConfirmed) return;
+        try {
+            setLoading(true);
+            for (const r of reports) {
+                await deleteDoc(doc(db, 'ghost_daily_reports', r.id));
+            }
+            setSelectedReport(null);
+            setCurrentPage(0);
+            await fetchReports();
+            Swal.fire({ title: 'Todo Eliminado', icon: 'success', timer: 1500, showConfirmButton: false, background: '#0f172a', color: '#f8fafc' });
+        } catch (e) {
+            Swal.fire({ title: 'Error', text: e.message, icon: 'error', background: '#0f172a', color: '#f8fafc' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ─── PAGINATION ───
+    const totalPages = Math.max(1, Math.ceil(reports.length / REPORTS_PER_PAGE));
+    const paginatedReports = reports.slice(currentPage * REPORTS_PER_PAGE, (currentPage + 1) * REPORTS_PER_PAGE);
+
     // Health scoring colors
     const getHealthColor = (score) => {
         if (score == null) return 'text-slate-500';
@@ -239,7 +300,14 @@ export default function GhostReportsView() {
                         disabled={reports.length === 0}
                         className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white px-4 py-2 rounded-lg font-bold text-xs transition-colors"
                     >
-                        <Database size={14} /> COMPILAR DATASET ({reports.length})
+                        <Database size={14} /> COMPILAR ({reports.length})
+                    </button>
+                    <button
+                        onClick={handleDeleteAll}
+                        disabled={reports.length === 0}
+                        className="flex items-center gap-2 bg-red-600/80 hover:bg-red-500 disabled:opacity-30 text-white px-4 py-2 rounded-lg font-bold text-xs transition-colors"
+                    >
+                        <Trash2 size={14} /> BORRAR TODO
                     </button>
                     <button
                         onClick={fetchReports}
@@ -279,49 +347,81 @@ export default function GhostReportsView() {
             {/* Main Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Report List */}
-                <div className="col-span-1 space-y-2 max-h-[700px] overflow-y-auto custom-scrollbar">
-                    {reports.map((report) => {
-                        const score = report.aiDigest?.healthScore;
-                        return (
-                            <div
-                                key={report.id}
-                                onClick={() => setSelectedReport(report)}
-                                className={`cursor-pointer group p-4 rounded-xl border transition-all ${selectedReport?.id === report.id
-                                    ? 'bg-slate-800 border-purple-500/50 shadow-lg shadow-purple-900/10'
-                                    : 'bg-slate-950/50 border-slate-800 hover:bg-slate-900'
-                                    }`}
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <Calendar size={14} className="text-slate-500" />
-                                        <span className="text-sm font-bold text-slate-300">{report.date}</span>
-                                    </div>
-                                    {score != null && (
-                                        <span className={`text-lg font-black ${getHealthColor(score)}`}>
-                                            {score}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="text-xs text-slate-500 space-y-1">
-                                    <div className="flex justify-between">
-                                        <span>{report.businessName || 'Terminal'}</span>
-                                        <span>{report.rawEventCount || 0} eventos</span>
-                                    </div>
-                                    {report.metrics?.sales && (
-                                        <div className="flex justify-between text-emerald-400/60">
-                                            <span>{report.metrics.sales.totalSales} ventas</span>
-                                            <span>${report.metrics.sales.totalRevenue?.toFixed(2)}</span>
+                <div className="col-span-1 space-y-2">
+                    <div className="max-h-[620px] overflow-y-auto custom-scrollbar space-y-2">
+                        {paginatedReports.map((report) => {
+                            const score = report.aiDigest?.healthScore;
+                            return (
+                                <div
+                                    key={report.id}
+                                    onClick={() => setSelectedReport(report)}
+                                    className={`cursor-pointer group p-4 rounded-xl border transition-all relative ${selectedReport?.id === report.id
+                                        ? 'bg-slate-800 border-purple-500/50 shadow-lg shadow-purple-900/10'
+                                        : 'bg-slate-950/50 border-slate-800 hover:bg-slate-900'
+                                        }`}
+                                >
+                                    {/* Delete button */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteSingle(report); }}
+                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 bg-red-500/10 hover:bg-red-500/30 text-red-400 rounded-lg transition-all"
+                                        title="Eliminar reporte"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar size={14} className="text-slate-500" />
+                                            <span className="text-sm font-bold text-slate-300">{report.date}</span>
                                         </div>
-                                    )}
+                                        {score != null && (
+                                            <span className={`text-lg font-black ${getHealthColor(score)}`}>
+                                                {score}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-slate-500 space-y-1">
+                                        <div className="flex justify-between">
+                                            <span>{report.businessName || 'Terminal'}</span>
+                                            <span>{report.rawEventCount || 0} eventos</span>
+                                        </div>
+                                        {report.metrics?.sales && (
+                                            <div className="flex justify-between text-emerald-400/60">
+                                                <span>{report.metrics.sales.totalSales} ventas</span>
+                                                <span>${report.metrics.sales.totalRevenue?.toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                            );
+                        })}
+                        {reports.length === 0 && !loading && (
+                            <div className="text-center p-12 text-slate-600 border border-dashed border-slate-800 rounded-xl">
+                                <FileBarChart size={48} className="mx-auto mb-4 opacity-30" />
+                                <p className="font-bold">Sin reportes aún</p>
+                                <p className="text-xs mt-1">Los reportes se generan a las 10 PM desde cada POS</p>
                             </div>
-                        );
-                    })}
-                    {reports.length === 0 && !loading && (
-                        <div className="text-center p-12 text-slate-600 border border-dashed border-slate-800 rounded-xl">
-                            <FileBarChart size={48} className="mx-auto mb-4 opacity-30" />
-                            <p className="font-bold">Sin reportes aún</p>
-                            <p className="text-xs mt-1">Los reportes se generan a las 10 PM desde cada POS</p>
+                        )}
+                    </div>
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                                disabled={currentPage === 0}
+                                className="p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-300 rounded-lg transition-all"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <span className="text-xs text-slate-500 font-mono">
+                                {currentPage + 1} / {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                                disabled={currentPage >= totalPages - 1}
+                                className="p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-300 rounded-lg transition-all"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
                         </div>
                     )}
                 </div>
@@ -437,13 +537,19 @@ export default function GhostReportsView() {
                                 </div>
                             )}
 
-                            {/* Download Button */}
-                            <div className="flex justify-end">
+                            {/* Actions */}
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => handleDeleteSingle(selectedReport)}
+                                    className="flex items-center gap-2 text-xs font-bold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-4 py-2 rounded-lg border border-red-500/30 transition-colors"
+                                >
+                                    <Trash2 size={14} /> Eliminar
+                                </button>
                                 <button
                                     onClick={() => handleDownloadSingle(selectedReport)}
                                     className="flex items-center gap-2 text-xs font-bold text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-4 py-2 rounded-lg border border-purple-500/30 transition-colors"
                                 >
-                                    <Download size={14} /> Descargar Reporte
+                                    <Download size={14} /> Descargar
                                 </button>
                             </div>
                         </>
